@@ -7,18 +7,22 @@ const connectDB = async () => {
     return;
   }
 
+  const uri = process.env.MONGO_URI;
+  if (!uri && process.env.VERCEL) {
+    throw new Error(
+      'MONGO_URI is missing in Vercel Environment Variables. Please add your MongoDB Atlas connection string in Vercel Project Settings > Environment Variables.'
+    );
+  }
+
   try {
-    const conn = await mongoose.connect(process.env.MONGO_URI || 'mongodb://localhost:27017/kamrul-yarn-trading', {
+    const conn = await mongoose.connect(uri || 'mongodb://localhost:27017/kamrul-yarn-trading', {
       serverSelectionTimeoutMS: 5000,
     });
     isConnected = true;
     console.log(`MongoDB Connected: ${conn.connection.host}`);
   } catch (error) {
     console.error(`MongoDB Connection Error: ${error.message}`);
-    // Do not hard exit in serverless environments
-    if (process.env.NODE_ENV !== 'production') {
-      process.exit(1);
-    }
+    throw error;
   }
 };
 

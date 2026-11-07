@@ -23,6 +23,10 @@ const request = async (key, options) => {
     headers: { 'Content-Type': 'application/json' },
     ...options,
   });
+  const contentType = response.headers.get('content-type') || '';
+  if (!contentType.includes('application/json')) {
+    throw new Error('API server unreachable or returned non-JSON response. Please verify Vercel configuration.');
+  }
   if (!response.ok) {
     const body = await response.json().catch(() => ({}));
     throw new Error(body.message || `Server responded with ${response.status}.`);

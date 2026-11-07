@@ -20,22 +20,31 @@ app.use(async (req, res, next) => {
   }
 });
 
-app.get('/api/health', (req, res) => {
+// Health check endpoint (supports both /api/health and /health)
+app.get(['/api/health', '/health'], (req, res) => {
   res.json({ status: 'ok', message: 'Backend is running smoothly.' });
 });
 
-app.use('/api/state', require('./routes/state'));
-app.use('/api', require('./routes/api'));
+// Root API info
+app.get(['/api', '/api/'], (req, res) => {
+  res.json({ status: 'ok', message: 'Kamrul Yarn Trading API is active.' });
+});
+
+// App State routes (supports both /api/state and /state)
+app.use(['/api/state', '/state'], require('./routes/state'));
+
+// Normalized API routes (supports both /api and /)
+app.use(['/api', '/'], require('./routes/api'));
 
 // Express error handler
 app.use((err, req, res, next) => {
-  console.error(err);
-  res.status(500).json({ message: err.message || 'Server error.' });
+  console.error('Server error:', err);
+  res.status(500).json({ status: 'error', message: err.message || 'Server error occurred.' });
 });
 
 const PORT = process.env.PORT || 5000;
 
-if (process.env.NODE_ENV !== 'production' || !process.env.VERCEL) {
+if (process.env.NODE_ENV !== 'production' && !process.env.VERCEL) {
   app.listen(PORT, () => {
     console.log(`Server running on port ${PORT}`);
   });
