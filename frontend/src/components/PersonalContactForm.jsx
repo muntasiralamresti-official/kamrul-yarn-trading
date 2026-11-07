@@ -1,0 +1,86 @@
+import React from 'react';
+import { UserPlus } from 'lucide-react';
+
+export const PersonalContactForm = ({ personForm, setPersonForm, onSavePerson }) => {
+  return (
+    <form onSubmit={onSavePerson} className="bg-white border border-slate-200 rounded-xl p-5 space-y-4 max-w-2xl shadow-sm">
+      <h3 className="font-bold text-slate-800 text-sm sm:text-base border-b border-slate-100 pb-2 flex items-center gap-1.5">
+        <UserPlus size={18} className="text-indigo-600" /> Add New Contact Person
+      </h3>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div>
+          <label className="block text-xs font-medium text-slate-700 mb-1">Contact Name *</label>
+          <input
+            type="text"
+            value={personForm.name}
+            onChange={(e) => setPersonForm({ ...personForm, name: e.target.value })}
+            placeholder="Full Name"
+            className="w-full rounded border border-slate-300 p-2 text-xs sm:text-sm"
+            required
+          />
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-slate-700 mb-1">Mobile / Phone Number</label>
+          <input
+            type="text"
+            value={personForm.phone}
+            onChange={(e) => setPersonForm({ ...personForm, phone: e.target.value })}
+            placeholder="017XXXXXXXX"
+            className="w-full rounded border border-slate-300 p-2 text-xs sm:text-sm"
+          />
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-slate-700 mb-1">Relationship</label>
+          <select
+            value={personForm.relation}
+            onChange={(e) => setPersonForm({ ...personForm, relation: e.target.value })}
+            className="w-full rounded border border-slate-300 p-2 text-xs sm:text-sm bg-white"
+          >
+            <option value="Friend">Friend</option>
+            <option value="Family / Relative">Family / Relative</option>
+            <option value="Business Associate">Business Associate</option>
+            <option value="Neighbor">Neighbor</option>
+            <option value="Other">Other</option>
+          </select>
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-slate-700 mb-1">Address / Location</label>
+          <input
+            type="text"
+            value={personForm.address}
+            onChange={(e) => setPersonForm({ ...personForm, address: e.target.value })}
+            placeholder="City / Area"
+            className="w-full rounded border border-slate-300 p-2 text-xs sm:text-sm"
+          />
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-slate-700 mb-1">Opening Balance Type</label>
+          <select
+            value={personForm.openingType}
+            onChange={(e) => setPersonForm({ ...personForm, openingType: e.target.value })}
+            className="w-full rounded border border-slate-300 p-2 text-xs sm:text-sm bg-white"
+          >
+            <option value="receivable">I am owed (Receivable / My Due)</option>
+            <option value="payable">I owe (Payable / My Debt)</option>
+          </select>
+        </div>
+        <div>
+          <label className="block text-xs font-medium text-slate-700 mb-1">Opening Amount (BDT)</label>
+          <input
+            type="number"
+            min="0"
+            value={personForm.openingAmount}
+            onChange={(e) => setPersonForm({ ...personForm, openingAmount: e.target.value })}
+            placeholder="0"
+            className="w-full rounded border border-slate-300 p-2 text-xs sm:text-sm font-mono"
+          />
+        </div>
+      </div>
+      <div className="flex justify-end pt-2">
+        <button type="submit" className="bg-indigo-600 hover:bg-indigo-700 text-white font-medium text-xs sm:text-sm px-6 py-2 rounded-lg transition-colors shadow-sm">
+          Save Contact
+        </button>
+      </div>
+    </form>
+  );
+};

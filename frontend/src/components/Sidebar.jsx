@@ -7,7 +7,7 @@ const navItems = [
   { name: 'Sales', path: '/sales', icon: DollarSign },
   { name: 'Purchase', path: '/purchase', icon: ShoppingCart },
   { name: 'Accounts', path: '/accounts', icon: BookOpen },
-  { name: 'ব্যক্তিগত দেনা-পাওনা', path: '/accounts/personal-ledger', icon: UserCheck },
+  { name: 'Personal Ledger', path: '/accounts/personal-ledger', icon: UserCheck },
   { name: 'HR & Payroll', path: '/hr', icon: Users },
   { name: 'Reports', path: '/reports', icon: FileText },
   { name: 'Administration', path: '/admin', icon: Settings },

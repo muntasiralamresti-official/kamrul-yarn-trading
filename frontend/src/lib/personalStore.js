@@ -42,10 +42,10 @@ export const usePersonalState = () => useSyncExternalStore(subscribe, getSnapsho
 
 export const savePerson = (personData) => {
   const name = String(personData.name || '').trim();
-  if (!name) throw new Error('ব্যক্তির নাম প্রদান করুন।');
+  if (!name) throw new Error('Please enter the person\'s name.');
 
   const existing = state.persons.find((p) => p.name.toLowerCase() === name.toLowerCase() && p.id !== personData.id);
-  if (existing) throw new Error('এই নামের ব্যক্তি ইতিমধ্যে যোগ করা আছে।');
+  if (existing) throw new Error('A person with this name already exists.');
 
   let nextPersons;
   if (personData.id) {
@@ -57,11 +57,12 @@ export const savePerson = (personData) => {
         id: makeId(),
         name,
         phone: String(personData.phone || '').trim(),
-        relation: String(personData.relation || 'বন্ধু/আত্মীয়').trim(),
+        relation: String(personData.relation || 'Friend / Family').trim(),
         address: String(personData.address || '').trim(),
-        openingType: personData.openingType || 'receivable', // receivable (আমি পাবো) | payable (সে পাবে)
+        openingType: personData.openingType || 'receivable', // 'receivable' | 'payable'
         openingAmount: Number(personData.openingAmount) || 0,
         note: String(personData.note || '').trim(),
+        createdAt: new Date().toISOString(),
       },
     ];
   }
@@ -71,27 +72,30 @@ export const savePerson = (personData) => {
 
 export const deletePerson = (personId) => {
   const hasRecords = state.records.some((r) => r.personId === personId);
-  if (hasRecords) throw new Error('এই ব্যক্তির লেনদেনের ইতিহাস রয়েছে, তাই ডিলিট করা যাবে না।');
+  if (hasRecords) {
+    throw new Error('This contact has transaction history. Please delete their transactions first.');
+  }
   persist({ ...state, persons: state.persons.filter((p) => p.id !== personId) });
 };
 
 export const addPersonalRecord = (data) => {
   const amount = Number(data.amount);
-  if (!Number.isFinite(amount) || amount <= 0) throw new Error('টাকার পরিমাণ সঠিক এবং শূন্যের বেশি হতে হবে।');
-  if (!data.personId) throw new Error('ব্যক্তি নির্বাচন করুন।');
-  if (!data.date) throw new Error('তারিখ আবশ্যক।');
+  if (!Number.isFinite(amount) || amount <= 0) throw new Error('Please enter a valid amount greater than 0.');
+  if (!data.personId) throw new Error('Please select a contact person.');
+  if (!data.date) throw new Error('Transaction date is required.');
 
   const person = state.persons.find((p) => p.id === data.personId);
-  if (!person) throw new Error('ব্যক্তি খুঁজে পাওয়া যায়নি।');
+  if (!person) throw new Error('Contact person not found.');
 
   const newRecord = {
     id: makeId(),
     personId: data.personId,
     personName: person.name,
     date: data.date,
-    type: data.type, // 'given' (আমি দিলাম / ঋণ প্রদান) | 'taken' (আমি নিলাম / ঋণ গ্রহণ) | 'got_back' (ফেরত পেলাম) | 'returned' (ফেরত দিলাম)
+    dueDate: data.dueDate || '',
+    type: data.type, // 'given' | 'taken' | 'got_back' | 'returned'
     amount,
-    method: data.method || 'Cash', // Cash | bKash / Nagad | Bank
+    method: data.method || 'Cash', // 'Cash' | 'bKash / Nagad' | 'Bank'
     bankOrWalletDetails: String(data.bankOrWalletDetails || '').trim(),
     note: String(data.note || '').trim(),
     createdAt: new Date().toISOString(),
@@ -105,18 +109,18 @@ export const deletePersonalRecord = (recordId) => {
   persist({ ...state, records: state.records.filter((r) => r.id !== recordId) });
 };
 
-// ব্যক্তির ব্যালেন্স হিসাব
-// ধনাত্মক (+) মানে 'আমি পাবো' (Receivable / তার কাছে পাই)
-// ঋণাত্মক (-) মানে 'সে পাবে' (Payable / আমি দেনাদার)
+// Calculate net balance for a contact
+// Positive (+) = Receivable (I will receive)
+// Negative (-) = Payable (I have to pay / my debt)
 export const calculatePersonBalance = (person, records = state.records) => {
   const initial = person.openingType === 'payable' ? -Number(person.openingAmount || 0) : Number(person.openingAmount || 0);
   const personRecords = records.filter((r) => r.personId === person.id);
 
   const delta = personRecords.reduce((sum, r) => {
-    if (r.type === 'given') return sum + r.amount; // আমি দিলাম -> আমার পাওনা বাড়লো (+)
-    if (r.type === 'got_back') return sum - r.amount; // সে ফেরত দিলো -> আমার পাওনা কমলো (-)
-    if (r.type === 'taken') return sum - r.amount; // আমি নিলাম -> আমি দেনাদার হলাম (-)
-    if (r.type === 'returned') return sum + r.amount; // আমি শোধ দিলাম -> দেনা কমলো (+)
+    if (r.type === 'given') return sum + r.amount; // Lent out -> increases receivable (+)
+    if (r.type === 'got_back') return sum - r.amount; // Received back -> decreases receivable (-)
+    if (r.type === 'taken') return sum - r.amount; // Borrowed -> increases debt (-)
+    if (r.type === 'returned') return sum + r.amount; // Repaid debt -> decreases debt (+)
     return sum;
   }, 0);
 

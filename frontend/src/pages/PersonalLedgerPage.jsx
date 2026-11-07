@@ -1,9 +1,11 @@
 import React, { useState, useMemo } from 'react';
-import { Wallet, Search } from 'lucide-react';
+import { Wallet, Search, FileSpreadsheet, Printer } from 'lucide-react';
 import { usePersonalState, savePerson, addPersonalRecord, deletePersonalRecord, calculatePersonBalance } from '../lib/personalStore';
 import { formatMoney, localDate } from '../lib/accountsStore';
+import { exportMultipleSheets } from '../lib/excelExport';
 import { PersonalSummaryTable } from '../components/PersonalSummaryTable';
 import { PersonalTransactionsView } from '../components/PersonalTransactionsView';
+import { PersonalContactForm } from '../components/PersonalContactForm';
 
 const PersonalLedgerPage = () => {
   const { persons, records } = usePersonalState();
@@ -11,29 +13,68 @@ const PersonalLedgerPage = () => {
   const [search, setSearch] = useState('');
   const [selectedPersonId, setSelectedPersonId] = useState('all');
 
-  const [personForm, setPersonForm] = useState({ name: '', phone: '', relation: 'বন্ধু/আত্মীয়', address: '', openingType: 'receivable', openingAmount: '', note: '' });
-  const [txnForm, setTxnForm] = useState({ personId: '', date: localDate(), type: 'given', amount: '', method: 'Cash', bankOrWalletDetails: '', note: '' });
+  const [personForm, setPersonForm] = useState({
+    name: '',
+    phone: '',
+    relation: 'Friend / Family',
+    address: '',
+    openingType: 'receivable',
+    openingAmount: '',
+    note: '',
+  });
+
+  const [txnForm, setTxnForm] = useState({
+    personId: '',
+    date: localDate(),
+    dueDate: '',
+    type: 'given',
+    amount: '',
+    method: 'Cash',
+    bankOrWalletDetails: '',
+    note: '',
+  });
+
   const [message, setMessage] = useState('');
   const [isError, setIsError] = useState(false);
 
   const stats = useMemo(() => {
     let totalReceivable = 0;
     let totalPayable = 0;
+    let receivableCount = 0;
+    let payableCount = 0;
+    let settledCount = 0;
+
     persons.forEach((p) => {
       const bal = calculatePersonBalance(p, records);
-      if (bal > 0) totalReceivable += bal;
-      if (bal < 0) totalPayable += Math.abs(bal);
+      if (bal > 0) {
+        totalReceivable += bal;
+        receivableCount += 1;
+      } else if (bal < 0) {
+        totalPayable += Math.abs(bal);
+        payableCount += 1;
+      } else {
+        settledCount += 1;
+      }
     });
-    return { totalReceivable, totalPayable, net: totalReceivable - totalPayable };
+
+    return {
+      totalReceivable,
+      totalPayable,
+      net: totalReceivable - totalPayable,
+      receivableCount,
+      payableCount,
+      settledCount,
+    };
   }, [persons, records]);
 
   const handleSavePerson = (e) => {
     e.preventDefault();
     try {
       savePerson(personForm);
-      setPersonForm({ name: '', phone: '', relation: 'বন্ধু/আত্মীয়', address: '', openingType: 'receivable', openingAmount: '', note: '' });
-      setMessage('ব্যক্তি সফলভাবে যুক্ত হয়েছে।');
+      setPersonForm({ name: '', phone: '', relation: 'Friend / Family', address: '', openingType: 'receivable', openingAmount: '', note: '' });
+      setMessage('Contact person added successfully.');
       setIsError(false);
+      setActiveTab('summary');
     } catch (err) {
       setMessage(err.message);
       setIsError(true);
@@ -44,8 +85,8 @@ const PersonalLedgerPage = () => {
     e.preventDefault();
     try {
       addPersonalRecord(txnForm);
-      setTxnForm({ personId: '', date: localDate(), type: 'given', amount: '', method: 'Cash', bankOrWalletDetails: '', note: '' });
-      setMessage('ব্যক্তিগত লেনদেন সফলভাবে সংরক্ষণ করা হয়েছে।');
+      setTxnForm({ personId: '', date: localDate(), dueDate: '', type: 'given', amount: '', method: 'Cash', bankOrWalletDetails: '', note: '' });
+      setMessage('Personal transaction recorded successfully.');
       setIsError(false);
     } catch (err) {
       setMessage(err.message);
@@ -53,33 +94,102 @@ const PersonalLedgerPage = () => {
     }
   };
 
+  const handleExportExcel = () => {
+    if (!persons.length && !records.length) {
+      alert('No data available to export.');
+      return;
+    }
+    const summaryData = persons.map((p) => {
+      const bal = calculatePersonBalance(p, records);
+      return {
+        'Contact Name': p.name,
+        'Phone': p.phone || 'N/A',
+        'Relationship': p.relation || 'Personal',
+        'Address': p.address || 'N/A',
+        'Opening Balance': p.openingAmount || 0,
+        'Net Balance (BDT)': Math.abs(bal),
+        'Status': bal > 0 ? 'To Receive (Receivable)' : bal < 0 ? 'To Pay (Payable)' : 'Settled',
+      };
+    });
+
+    const txnsData = records.map((r) => ({
+      'Date': r.date,
+      'Contact Name': r.personName,
+      'Transaction Type': r.type === 'given' ? 'Lent (Given)' : r.type === 'got_back' ? 'Recovered' : r.type === 'taken' ? 'Borrowed' : 'Repaid',
+      'Method': r.method,
+      'Amount (BDT)': r.amount,
+      'Promised Return Date': r.dueDate || 'N/A',
+      'Notes': r.note || '',
+    }));
+
+    exportMultipleSheets(
+      { 'Summary Balances': summaryData, 'Transaction Log': txnsData },
+      'Personal_Ledger'
+    );
+  };
+
   return (
     <div className="mx-auto max-w-6xl p-4 sm:p-6 space-y-6">
+      {/* Header & Quick Action Buttons */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
         <div>
           <h1 className="text-xl sm:text-2xl font-bold text-slate-800 flex items-center gap-2">
-            <Wallet className="text-indigo-600" size={26} /> ব্যক্তিগত দেনা-পাওনা ও ধার-দেনা হিসাব
+            <Wallet className="text-indigo-600" size={26} /> Personal Ledger & Loan Tracker
           </h1>
           <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
-            ব্যবসার বাইরে বন্ধু, আত্মীয় বা পরিচিতদের ব্যক্তিগত লেনদেন (কার থেকে নিলাম, কাকে দিলাম, কে কত পাবে)।
+            Personal borrowings, lendings, and dues outside company operations (Friends, Family & Associates).
           </p>
+        </div>
+        <div className="flex items-center gap-2 self-stretch sm:self-auto">
+          <button
+            type="button"
+            onClick={handleExportExcel}
+            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 text-xs font-medium shadow-sm transition-colors"
+            title="Download Excel statement"
+          >
+            <FileSpreadsheet size={15} className="text-emerald-600" /> Export Excel
+          </button>
+          <button
+            type="button"
+            onClick={() => window.print()}
+            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 text-xs font-medium shadow-sm transition-colors"
+            title="Print statement"
+          >
+            <Printer size={15} className="text-slate-600" /> Print
+          </button>
         </div>
       </div>
 
+      {/* KPI Stat Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4">
-          <span className="text-xs font-semibold text-emerald-800 uppercase tracking-wider block">আমি মোট পাবো (পাওনা টাকা)</span>
+        <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 shadow-sm">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold text-emerald-800 uppercase tracking-wider">Total Receivable</span>
+            <span className="text-xs font-medium text-emerald-600 bg-emerald-100 px-2 py-0.5 rounded-full">{stats.receivableCount} debtors</span>
+          </div>
           <p className="text-xl sm:text-2xl font-bold text-emerald-700 mt-1 font-mono">{formatMoney(stats.totalReceivable)}</p>
+          <span className="text-[11px] text-emerald-600 mt-0.5 block">Money to be collected from contacts</span>
         </div>
-        <div className="bg-rose-50 border border-rose-200 rounded-xl p-4">
-          <span className="text-xs font-semibold text-rose-800 uppercase tracking-wider block">আমি মোট দেবো (আমার দেনা / ধার)</span>
+
+        <div className="bg-rose-50 border border-rose-200 rounded-xl p-4 shadow-sm">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold text-rose-800 uppercase tracking-wider">Total Payable (Debt)</span>
+            <span className="text-xs font-medium text-rose-600 bg-rose-100 px-2 py-0.5 rounded-full">{stats.payableCount} creditors</span>
+          </div>
           <p className="text-xl sm:text-2xl font-bold text-rose-700 mt-1 font-mono">{formatMoney(stats.totalPayable)}</p>
+          <span className="text-[11px] text-rose-600 mt-0.5 block">Money you borrowed and have to repay</span>
         </div>
-        <div className="bg-slate-50 border border-slate-200 rounded-xl p-4">
-          <span className="text-xs font-semibold text-slate-700 uppercase tracking-wider block">মোট নেট ব্যালেন্স</span>
+
+        <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 shadow-sm">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-semibold text-slate-700 uppercase tracking-wider">Net Personal Balance</span>
+            <span className="text-xs font-medium text-slate-500 bg-slate-200 px-2 py-0.5 rounded-full">{stats.settledCount} settled</span>
+          </div>
           <p className={`text-xl sm:text-2xl font-bold mt-1 font-mono ${stats.net >= 0 ? 'text-indigo-700' : 'text-amber-700'}`}>
-            {formatMoney(Math.abs(stats.net))} {stats.net >= 0 ? '(উদ্বৃত্ত)' : '(দেনা)'}
+            {formatMoney(Math.abs(stats.net))}
+            <span className="text-xs font-normal ml-1.5">{stats.net >= 0 ? '(Net Surplus)' : '(Net Deficit)'}</span>
           </p>
+          <span className="text-[11px] text-slate-500 mt-0.5 block">Overall personal asset vs obligation</span>
         </div>
       </div>
 
@@ -89,24 +199,28 @@ const PersonalLedgerPage = () => {
         </div>
       )}
 
+      {/* Tabs */}
       <div className="flex border-b border-slate-200 gap-2 sm:gap-4 text-xs sm:text-sm font-semibold">
         <button
+          type="button"
           onClick={() => setActiveTab('summary')}
           className={`pb-2.5 transition-colors border-b-2 ${activeTab === 'summary' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-500 hover:text-slate-800'}`}
         >
-          কার কাছে কত পাই / কে কত পাবে ({persons.length})
+          Balances by Contact ({persons.length})
         </button>
         <button
+          type="button"
           onClick={() => setActiveTab('transaction')}
           className={`pb-2.5 transition-colors border-b-2 ${activeTab === 'transaction' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-500 hover:text-slate-800'}`}
         >
-          নতুন লেনদেন এন্ট্রি ও ইতিহাস ({records.length})
+          Transaction History & Entries ({records.length})
         </button>
         <button
+          type="button"
           onClick={() => setActiveTab('persons')}
           className={`pb-2.5 transition-colors border-b-2 ${activeTab === 'persons' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-500 hover:text-slate-800'}`}
         >
-          + নতুন ব্যক্তি যোগ করুন
+          + Add New Contact
         </button>
       </div>
 
@@ -118,8 +232,8 @@ const PersonalLedgerPage = () => {
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="ব্যক্তির নাম বা ফোন দিয়ে খুঁজুন..."
-              className="w-full pl-9 pr-3 py-2 text-xs sm:text-sm rounded-lg border border-slate-300 focus:outline-none"
+              placeholder="Search contact by name, phone or relation..."
+              className="w-full pl-9 pr-3 py-2 text-xs sm:text-sm rounded-lg border border-slate-300 focus:outline-none focus:ring-1 focus:ring-indigo-500"
             />
           </div>
           <PersonalSummaryTable
@@ -149,83 +263,11 @@ const PersonalLedgerPage = () => {
       )}
 
       {activeTab === 'persons' && (
-        <form onSubmit={handleSavePerson} className="bg-white border border-slate-200 rounded-xl p-5 space-y-4 max-w-2xl">
-          <h3 className="font-bold text-slate-800 text-sm sm:text-base border-b border-slate-100 pb-2">নতুন ব্যক্তি যোগ করুন</h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-medium text-slate-700 mb-1">ব্যক্তির নাম *</label>
-              <input
-                type="text"
-                value={personForm.name}
-                onChange={(e) => setPersonForm({ ...personForm, name: e.target.value })}
-                placeholder="নাম"
-                className="w-full rounded border border-slate-300 p-2 text-xs sm:text-sm"
-                required
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-slate-700 mb-1">মোবাইল নম্বর</label>
-              <input
-                type="text"
-                value={personForm.phone}
-                onChange={(e) => setPersonForm({ ...personForm, phone: e.target.value })}
-                placeholder="017..."
-                className="w-full rounded border border-slate-300 p-2 text-xs sm:text-sm"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-slate-700 mb-1">সম্পর্ক</label>
-              <select
-                value={personForm.relation}
-                onChange={(e) => setPersonForm({ ...personForm, relation: e.target.value })}
-                className="w-full rounded border border-slate-300 p-2 text-xs sm:text-sm bg-white"
-              >
-                <option value="বন্ধু">বন্ধু</option>
-                <option value="আত্মীয়">আত্মীয়</option>
-                <option value="ব্যবসায়িক পরিচিত">ব্যবসায়িক পরিচিত</option>
-                <option value="প্রতিবেশী">প্রতিবেশী</option>
-                <option value="অন্যান্য">অন্যান্য</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-slate-700 mb-1">ঠিকানা</label>
-              <input
-                type="text"
-                value={personForm.address}
-                onChange={(e) => setPersonForm({ ...personForm, address: e.target.value })}
-                placeholder="ঠিকানা"
-                className="w-full rounded border border-slate-300 p-2 text-xs sm:text-sm"
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-slate-700 mb-1">পূর্বের কোনো হিসাব থাকলে</label>
-              <select
-                value={personForm.openingType}
-                onChange={(e) => setPersonForm({ ...personForm, openingType: e.target.value })}
-                className="w-full rounded border border-slate-300 p-2 text-xs sm:text-sm bg-white"
-              >
-                <option value="receivable">আমি পাবো (পাওনা)</option>
-                <option value="payable">সে পাবে (আমার দেনা)</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-slate-700 mb-1">পূর্বের টাকার পরিমাণ (৳)</label>
-              <input
-                type="number"
-                min="0"
-                value={personForm.openingAmount}
-                onChange={(e) => setPersonForm({ ...personForm, openingAmount: e.target.value })}
-                placeholder="0"
-                className="w-full rounded border border-slate-300 p-2 text-xs sm:text-sm font-mono"
-              />
-            </div>
-          </div>
-          <div className="flex justify-end pt-2">
-            <button type="submit" className="bg-indigo-600 hover:bg-indigo-700 text-white font-medium text-xs sm:text-sm px-6 py-2 rounded-lg">
-              ব্যক্তি সংরক্ষণ করুন
-            </button>
-          </div>
-        </form>
+        <PersonalContactForm
+          personForm={personForm}
+          setPersonForm={setPersonForm}
+          onSavePerson={handleSavePerson}
+        />
       )}
     </div>
   );
