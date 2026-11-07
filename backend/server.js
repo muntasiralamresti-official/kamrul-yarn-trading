@@ -7,6 +7,15 @@ dotenv.config();
 
 const app = express();
 
+// Restore original req.url when rewritten by Vercel serverless functions
+app.use((req, res, next) => {
+  const original = req.headers['x-matched-path'] || req.headers['x-now-route-matches'];
+  if (original && original !== '/api/index.js' && original !== '/api') {
+    req.url = original;
+  }
+  next();
+});
+
 app.use(cors());
 app.use(express.json({ limit: '25mb' }));
 
