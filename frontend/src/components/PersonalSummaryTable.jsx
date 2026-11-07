@@ -1,15 +1,22 @@
 import React, { useState } from 'react';
 import { formatMoney } from '../lib/accountsStore';
 import { calculatePersonBalance, deletePerson } from '../lib/personalStore';
-import { MessageCircle, Phone, ArrowRightLeft, Trash2, CheckCircle2 } from 'lucide-react';
+import { MessageCircle, Phone, ArrowRightLeft, Trash2, CheckCircle2, Edit } from 'lucide-react';
 
-export const PersonalSummaryTable = ({ persons, records, search, onSelectPerson }) => {
+export const PersonalSummaryTable = ({
+  persons,
+  records,
+  customTypes = [],
+  search,
+  onSelectPerson,
+  onEditPerson,
+}) => {
   const [statusFilter, setStatusFilter] = useState('all');
 
   const filtered = persons.filter((p) => {
     const matchSearch = `${p.name} ${p.phone} ${p.relation} ${p.address || ''}`.toLowerCase().includes(search.toLowerCase());
     if (!matchSearch) return false;
-    const bal = calculatePersonBalance(p, records);
+    const bal = calculatePersonBalance(p, records, customTypes);
     if (statusFilter === 'receivable') return bal > 0;
     if (statusFilter === 'payable') return bal < 0;
     if (statusFilter === 'settled') return bal === 0;
@@ -81,7 +88,7 @@ export const PersonalSummaryTable = ({ persons, records, search, onSelectPerson 
               </tr>
             ) : (
               filtered.map((p) => {
-                const balance = calculatePersonBalance(p, records);
+                const balance = calculatePersonBalance(p, records, customTypes);
                 const hasHistory = records.some((r) => r.personId === p.id);
                 return (
                   <tr key={p.id} className="hover:bg-slate-50/80 transition-colors">
@@ -136,6 +143,14 @@ export const PersonalSummaryTable = ({ persons, records, search, onSelectPerson 
                           title="Record transaction or view history"
                         >
                           <ArrowRightLeft size={13} /> Transact
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => onEditPerson(p)}
+                          className="text-slate-400 hover:text-amber-600 p-1 rounded transition-colors"
+                          title="Edit Contact Details"
+                        >
+                          <Edit size={14} />
                         </button>
                         {p.phone && balance > 0 && (
                           <a

@@ -3,9 +3,17 @@ import { readHydrated, writeRemote } from './remoteState';
 
 const STORAGE_KEY = 'kamrul-yarn-trading.personal.v1';
 
+export const BUILTIN_TXN_TYPES = [
+  { id: 'given', label: '➡️ Lent Money (I gave loan / advance)', impact: 'receivable_plus' },
+  { id: 'got_back', label: '⬅️ Recovered Money (They returned my money)', impact: 'receivable_minus' },
+  { id: 'taken', label: '⬇️ Borrowed Money (I took loan / credit)', impact: 'payable_plus' },
+  { id: 'returned', label: '⬆️ Repaid Debt (I paid back my loan)', impact: 'payable_minus' },
+];
+
 const initialState = () => ({
   persons: [],
   records: [],
+  customTypes: [],
 });
 
 const parseStoredState = () => {
@@ -16,7 +24,11 @@ const parseStoredState = () => {
     if (!value || !Array.isArray(value.persons) || !Array.isArray(value.records)) {
       return initialState();
     }
-    return value;
+    return {
+      persons: value.persons || [],
+      records: value.records || [],
+      customTypes: Array.isArray(value.customTypes) ? value.customTypes : [],
+    };
   } catch {
     return initialState();
   }
@@ -49,7 +61,17 @@ export const savePerson = (personData) => {
 
   let nextPersons;
   if (personData.id) {
-    nextPersons = state.persons.map((p) => (p.id === personData.id ? { ...p, ...personData, name } : p));
+    nextPersons = state.persons.map((p) => (p.id === personData.id ? {
+      ...p,
+      name,
+      phone: String(personData.phone || '').trim(),
+      relation: String(personData.relation || 'Friend / Family').trim(),
+      address: String(personData.address || '').trim(),
+      openingType: personData.openingType || 'receivable',
+      openingAmount: Number(personData.openingAmount) || 0,
+      note: String(personData.note || '').trim(),
+      updatedAt: new Date().toISOString(),
+    } : p));
   } else {
     nextPersons = [
       ...state.persons,
@@ -59,7 +81,7 @@ export const savePerson = (personData) => {
         phone: String(personData.phone || '').trim(),
         relation: String(personData.relation || 'Friend / Family').trim(),
         address: String(personData.address || '').trim(),
-        openingType: personData.openingType || 'receivable', // 'receivable' | 'payable'
+        openingType: personData.openingType || 'receivable',
         openingAmount: Number(personData.openingAmount) || 0,
         note: String(personData.note || '').trim(),
         createdAt: new Date().toISOString(),
@@ -93,9 +115,9 @@ export const addPersonalRecord = (data) => {
     personName: person.name,
     date: data.date,
     dueDate: data.dueDate || '',
-    type: data.type, // 'given' | 'taken' | 'got_back' | 'returned'
+    type: data.type,
     amount,
-    method: data.method || 'Cash', // 'Cash' | 'bKash / Nagad' | 'Bank'
+    method: data.method || 'Cash',
     bankOrWalletDetails: String(data.bankOrWalletDetails || '').trim(),
     note: String(data.note || '').trim(),
     createdAt: new Date().toISOString(),
@@ -105,22 +127,81 @@ export const addPersonalRecord = (data) => {
   return newRecord;
 };
 
+export const updatePersonalRecord = (recordId, data) => {
+  const amount = Number(data.amount);
+  if (!Number.isFinite(amount) || amount <= 0) throw new Error('Please enter a valid amount greater than 0.');
+  if (!data.personId) throw new Error('Please select a contact person.');
+  if (!data.date) throw new Error('Transaction date is required.');
+
+  const person = state.persons.find((p) => p.id === data.personId);
+  if (!person) throw new Error('Contact person not found.');
+
+  const nextRecords = state.records.map((r) => {
+    if (r.id !== recordId) return r;
+    return {
+      ...r,
+      personId: data.personId,
+      personName: person.name,
+      date: data.date,
+      dueDate: data.dueDate || '',
+      type: data.type,
+      amount,
+      method: data.method || 'Cash',
+      bankOrWalletDetails: String(data.bankOrWalletDetails || '').trim(),
+      note: String(data.note || '').trim(),
+      updatedAt: new Date().toISOString(),
+    };
+  });
+
+  persist({ ...state, records: nextRecords });
+};
+
 export const deletePersonalRecord = (recordId) => {
   persist({ ...state, records: state.records.filter((r) => r.id !== recordId) });
 };
 
-// Calculate net balance for a contact
-// Positive (+) = Receivable (I will receive)
-// Negative (-) = Payable (I have to pay / my debt)
-export const calculatePersonBalance = (person, records = state.records) => {
+export const addCustomType = ({ label, impact }) => {
+  const trimmed = String(label || '').trim();
+  if (!trimmed) throw new Error('Please enter a transaction type name.');
+
+  const id = `custom_${Date.now()}`;
+  const newType = {
+    id,
+    label: trimmed,
+    impact: impact || 'receivable_plus',
+  };
+
+  persist({
+    ...state,
+    customTypes: [...(state.customTypes || []), newType],
+  });
+  return newType;
+};
+
+export const deleteCustomType = (typeId) => {
+  const inUse = state.records.some((r) => r.type === typeId);
+  if (inUse) {
+    throw new Error('This transaction type is currently used in existing transactions and cannot be deleted.');
+  }
+  persist({
+    ...state,
+    customTypes: (state.customTypes || []).filter((t) => t.id !== typeId),
+  });
+};
+
+export const calculatePersonBalance = (person, records = state.records, customTypes = state.customTypes || []) => {
   const initial = person.openingType === 'payable' ? -Number(person.openingAmount || 0) : Number(person.openingAmount || 0);
   const personRecords = records.filter((r) => r.personId === person.id);
 
   const delta = personRecords.reduce((sum, r) => {
-    if (r.type === 'given') return sum + r.amount; // Lent out -> increases receivable (+)
-    if (r.type === 'got_back') return sum - r.amount; // Received back -> decreases receivable (-)
-    if (r.type === 'taken') return sum - r.amount; // Borrowed -> increases debt (-)
-    if (r.type === 'returned') return sum + r.amount; // Repaid debt -> decreases debt (+)
+    let impact = r.type;
+    const custom = customTypes.find((ct) => ct.id === r.type);
+    if (custom) impact = custom.impact;
+
+    if (impact === 'given' || impact === 'receivable_plus') return sum + r.amount;
+    if (impact === 'got_back' || impact === 'receivable_minus') return sum - r.amount;
+    if (impact === 'taken' || impact === 'payable_plus') return sum - r.amount;
+    if (impact === 'returned' || impact === 'payable_minus') return sum + r.amount;
     return sum;
   }, 0);
 

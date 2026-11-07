@@ -1,12 +1,38 @@
 import React from 'react';
-import { UserPlus } from 'lucide-react';
+import { UserPlus, UserCheck, X } from 'lucide-react';
 
-export const PersonalContactForm = ({ personForm, setPersonForm, onSavePerson }) => {
+export const PersonalContactForm = ({
+  personForm,
+  setPersonForm,
+  onSavePerson,
+  editingPersonId,
+  onCancelEdit,
+}) => {
   return (
     <form onSubmit={onSavePerson} className="bg-white border border-slate-200 rounded-xl p-5 space-y-4 max-w-2xl shadow-sm">
-      <h3 className="font-bold text-slate-800 text-sm sm:text-base border-b border-slate-100 pb-2 flex items-center gap-1.5">
-        <UserPlus size={18} className="text-indigo-600" /> Add New Contact Person
-      </h3>
+      <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+        <h3 className="font-bold text-slate-800 text-sm sm:text-base flex items-center gap-1.5">
+          {editingPersonId ? (
+            <>
+              <UserCheck size={18} className="text-amber-600" /> Edit Contact Person
+            </>
+          ) : (
+            <>
+              <UserPlus size={18} className="text-indigo-600" /> Add New Contact Person
+            </>
+          )}
+        </h3>
+        {editingPersonId && (
+          <button
+            type="button"
+            onClick={onCancelEdit}
+            className="text-xs text-slate-500 hover:text-slate-800 flex items-center gap-1 px-2 py-1 rounded bg-slate-100 hover:bg-slate-200 transition-colors"
+          >
+            <X size={14} /> Cancel Edit
+          </button>
+        )}
+      </div>
+
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div>
           <label className="block text-xs font-medium text-slate-700 mb-1">Contact Name *</label>
@@ -76,9 +102,23 @@ export const PersonalContactForm = ({ personForm, setPersonForm, onSavePerson })
           />
         </div>
       </div>
-      <div className="flex justify-end pt-2">
-        <button type="submit" className="bg-indigo-600 hover:bg-indigo-700 text-white font-medium text-xs sm:text-sm px-6 py-2 rounded-lg transition-colors shadow-sm">
-          Save Contact
+      <div className="flex justify-end gap-2 pt-2">
+        {editingPersonId && (
+          <button
+            type="button"
+            onClick={onCancelEdit}
+            className="border border-slate-300 hover:bg-slate-100 text-slate-700 font-medium text-xs sm:text-sm px-4 py-2 rounded-lg transition-colors"
+          >
+            Cancel
+          </button>
+        )}
+        <button
+          type="submit"
+          className={`text-white font-medium text-xs sm:text-sm px-6 py-2 rounded-lg transition-colors shadow-sm ${
+            editingPersonId ? 'bg-amber-600 hover:bg-amber-700' : 'bg-indigo-600 hover:bg-indigo-700'
+          }`}
+        >
+          {editingPersonId ? 'Update Contact' : 'Save Contact'}
         </button>
       </div>
     </form>

@@ -1,6 +1,14 @@
 import React, { useState, useMemo } from 'react';
 import { Wallet, Search, FileSpreadsheet, Printer } from 'lucide-react';
-import { usePersonalState, savePerson, addPersonalRecord, deletePersonalRecord, calculatePersonBalance } from '../lib/personalStore';
+import {
+  usePersonalState,
+  savePerson,
+  addPersonalRecord,
+  updatePersonalRecord,
+  deletePersonalRecord,
+  calculatePersonBalance,
+  addCustomType,
+} from '../lib/personalStore';
 import { formatMoney, localDate } from '../lib/accountsStore';
 import { exportMultipleSheets } from '../lib/excelExport';
 import { PersonalSummaryTable } from '../components/PersonalSummaryTable';
@@ -8,11 +16,12 @@ import { PersonalTransactionsView } from '../components/PersonalTransactionsView
 import { PersonalContactForm } from '../components/PersonalContactForm';
 
 const PersonalLedgerPage = () => {
-  const { persons, records } = usePersonalState();
+  const { persons, records, customTypes = [] } = usePersonalState();
   const [activeTab, setActiveTab] = useState('summary');
   const [search, setSearch] = useState('');
   const [selectedPersonId, setSelectedPersonId] = useState('all');
 
+  const [editingPersonId, setEditingPersonId] = useState(null);
   const [personForm, setPersonForm] = useState({
     name: '',
     phone: '',
@@ -23,6 +32,7 @@ const PersonalLedgerPage = () => {
     note: '',
   });
 
+  const [editingTxnId, setEditingTxnId] = useState(null);
   const [txnForm, setTxnForm] = useState({
     personId: '',
     date: localDate(),
@@ -45,7 +55,7 @@ const PersonalLedgerPage = () => {
     let settledCount = 0;
 
     persons.forEach((p) => {
-      const bal = calculatePersonBalance(p, records);
+      const bal = calculatePersonBalance(p, records, customTypes);
       if (bal > 0) {
         totalReceivable += bal;
         receivableCount += 1;
@@ -57,22 +67,16 @@ const PersonalLedgerPage = () => {
       }
     });
 
-    return {
-      totalReceivable,
-      totalPayable,
-      net: totalReceivable - totalPayable,
-      receivableCount,
-      payableCount,
-      settledCount,
-    };
-  }, [persons, records]);
+    return { totalReceivable, totalPayable, net: totalReceivable - totalPayable, receivableCount, payableCount, settledCount };
+  }, [persons, records, customTypes]);
 
   const handleSavePerson = (e) => {
     e.preventDefault();
     try {
-      savePerson(personForm);
+      savePerson({ ...personForm, id: editingPersonId });
       setPersonForm({ name: '', phone: '', relation: 'Friend / Family', address: '', openingType: 'receivable', openingAmount: '', note: '' });
-      setMessage('Contact person added successfully.');
+      setEditingPersonId(null);
+      setMessage(editingPersonId ? 'Contact person updated successfully.' : 'Contact person added successfully.');
       setIsError(false);
       setActiveTab('summary');
     } catch (err) {
@@ -81,17 +85,62 @@ const PersonalLedgerPage = () => {
     }
   };
 
+  const handleEditPerson = (person) => {
+    setEditingPersonId(person.id);
+    setPersonForm({
+      name: person.name,
+      phone: person.phone || '',
+      relation: person.relation || 'Friend / Family',
+      address: person.address || '',
+      openingType: person.openingType || 'receivable',
+      openingAmount: person.openingAmount || '',
+      note: person.note || '',
+    });
+    setActiveTab('persons');
+  };
+
+  const handleCancelEditPerson = () => {
+    setEditingPersonId(null);
+    setPersonForm({ name: '', phone: '', relation: 'Friend / Family', address: '', openingType: 'receivable', openingAmount: '', note: '' });
+  };
+
   const handleSaveTxn = (e) => {
     e.preventDefault();
     try {
-      addPersonalRecord(txnForm);
+      if (editingTxnId) {
+        updatePersonalRecord(editingTxnId, txnForm);
+        setMessage('Personal transaction updated successfully.');
+      } else {
+        addPersonalRecord(txnForm);
+        setMessage('Personal transaction recorded successfully.');
+      }
       setTxnForm({ personId: '', date: localDate(), dueDate: '', type: 'given', amount: '', method: 'Cash', bankOrWalletDetails: '', note: '' });
-      setMessage('Personal transaction recorded successfully.');
+      setEditingTxnId(null);
       setIsError(false);
     } catch (err) {
       setMessage(err.message);
       setIsError(true);
     }
+  };
+
+  const handleEditTxn = (record) => {
+    setEditingTxnId(record.id);
+    setTxnForm({
+      personId: record.personId,
+      date: record.date,
+      dueDate: record.dueDate || '',
+      type: record.type,
+      amount: record.amount,
+      method: record.method || 'Cash',
+      bankOrWalletDetails: record.bankOrWalletDetails || '',
+      note: record.note || '',
+    });
+    window.scrollTo({ top: 300, behavior: 'smooth' });
+  };
+
+  const handleCancelEditTxn = () => {
+    setEditingTxnId(null);
+    setTxnForm({ personId: '', date: localDate(), dueDate: '', type: 'given', amount: '', method: 'Cash', bankOrWalletDetails: '', note: '' });
   };
 
   const handleExportExcel = () => {
@@ -100,7 +149,7 @@ const PersonalLedgerPage = () => {
       return;
     }
     const summaryData = persons.map((p) => {
-      const bal = calculatePersonBalance(p, records);
+      const bal = calculatePersonBalance(p, records, customTypes);
       return {
         'Contact Name': p.name,
         'Phone': p.phone || 'N/A',
@@ -115,22 +164,18 @@ const PersonalLedgerPage = () => {
     const txnsData = records.map((r) => ({
       'Date': r.date,
       'Contact Name': r.personName,
-      'Transaction Type': r.type === 'given' ? 'Lent (Given)' : r.type === 'got_back' ? 'Recovered' : r.type === 'taken' ? 'Borrowed' : 'Repaid',
+      'Transaction Type': r.type,
       'Method': r.method,
       'Amount (BDT)': r.amount,
       'Promised Return Date': r.dueDate || 'N/A',
       'Notes': r.note || '',
     }));
 
-    exportMultipleSheets(
-      { 'Summary Balances': summaryData, 'Transaction Log': txnsData },
-      'Personal_Ledger'
-    );
+    exportMultipleSheets({ 'Summary Balances': summaryData, 'Transaction Log': txnsData }, 'Personal_Ledger');
   };
 
   return (
     <div className="mx-auto max-w-6xl p-4 sm:p-6 space-y-6">
-      {/* Header & Quick Action Buttons */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
         <div>
           <h1 className="text-xl sm:text-2xl font-bold text-slate-800 flex items-center gap-2">
@@ -141,26 +186,15 @@ const PersonalLedgerPage = () => {
           </p>
         </div>
         <div className="flex items-center gap-2 self-stretch sm:self-auto">
-          <button
-            type="button"
-            onClick={handleExportExcel}
-            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 text-xs font-medium shadow-sm transition-colors"
-            title="Download Excel statement"
-          >
+          <button type="button" onClick={handleExportExcel} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 text-xs font-medium shadow-sm transition-colors">
             <FileSpreadsheet size={15} className="text-emerald-600" /> Export Excel
           </button>
-          <button
-            type="button"
-            onClick={() => window.print()}
-            className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 text-xs font-medium shadow-sm transition-colors"
-            title="Print statement"
-          >
+          <button type="button" onClick={() => window.print()} className="inline-flex items-center gap-1.5 px-3 py-2 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 text-xs font-medium shadow-sm transition-colors">
             <Printer size={15} className="text-slate-600" /> Print
           </button>
         </div>
       </div>
 
-      {/* KPI Stat Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
         <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 shadow-sm">
           <div className="flex items-center justify-between">
@@ -199,28 +233,15 @@ const PersonalLedgerPage = () => {
         </div>
       )}
 
-      {/* Tabs */}
       <div className="flex border-b border-slate-200 gap-2 sm:gap-4 text-xs sm:text-sm font-semibold">
-        <button
-          type="button"
-          onClick={() => setActiveTab('summary')}
-          className={`pb-2.5 transition-colors border-b-2 ${activeTab === 'summary' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-500 hover:text-slate-800'}`}
-        >
+        <button type="button" onClick={() => setActiveTab('summary')} className={`pb-2.5 transition-colors border-b-2 ${activeTab === 'summary' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-500 hover:text-slate-800'}`}>
           Balances by Contact ({persons.length})
         </button>
-        <button
-          type="button"
-          onClick={() => setActiveTab('transaction')}
-          className={`pb-2.5 transition-colors border-b-2 ${activeTab === 'transaction' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-500 hover:text-slate-800'}`}
-        >
+        <button type="button" onClick={() => setActiveTab('transaction')} className={`pb-2.5 transition-colors border-b-2 ${activeTab === 'transaction' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-500 hover:text-slate-800'}`}>
           Transaction History & Entries ({records.length})
         </button>
-        <button
-          type="button"
-          onClick={() => setActiveTab('persons')}
-          className={`pb-2.5 transition-colors border-b-2 ${activeTab === 'persons' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-500 hover:text-slate-800'}`}
-        >
-          + Add New Contact
+        <button type="button" onClick={() => setActiveTab('persons')} className={`pb-2.5 transition-colors border-b-2 ${activeTab === 'persons' ? 'border-indigo-600 text-indigo-600' : 'border-transparent text-slate-500 hover:text-slate-800'}`}>
+          {editingPersonId ? '✏️ Edit Contact' : '+ Add New Contact'}
         </button>
       </div>
 
@@ -239,11 +260,13 @@ const PersonalLedgerPage = () => {
           <PersonalSummaryTable
             persons={persons}
             records={records}
+            customTypes={customTypes}
             search={search}
             onSelectPerson={(id) => {
               setTxnForm((curr) => ({ ...curr, personId: id }));
               setActiveTab('transaction');
             }}
+            onEditPerson={handleEditPerson}
           />
         </div>
       )}
@@ -252,13 +275,18 @@ const PersonalLedgerPage = () => {
         <PersonalTransactionsView
           persons={persons}
           records={records}
+          customTypes={customTypes}
           selectedPersonId={selectedPersonId}
           setSelectedPersonId={setSelectedPersonId}
           search={search}
           txnForm={txnForm}
           setTxnForm={setTxnForm}
+          editingTxnId={editingTxnId}
           onSaveTxn={handleSaveTxn}
+          onEditTxn={handleEditTxn}
+          onCancelEdit={handleCancelEditTxn}
           onDeleteRecord={deletePersonalRecord}
+          onAddCustomType={addCustomType}
         />
       )}
 
@@ -267,6 +295,8 @@ const PersonalLedgerPage = () => {
           personForm={personForm}
           setPersonForm={setPersonForm}
           onSavePerson={handleSavePerson}
+          editingPersonId={editingPersonId}
+          onCancelEdit={handleCancelEditPerson}
         />
       )}
     </div>
