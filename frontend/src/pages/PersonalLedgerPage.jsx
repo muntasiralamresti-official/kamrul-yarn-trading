@@ -1,20 +1,17 @@
 import React, { useState, useMemo } from 'react';
 import { Wallet, Search, FileSpreadsheet, Printer } from 'lucide-react';
 import {
-  usePersonalState,
-  savePerson,
-  addPersonalRecord,
-  updatePersonalRecord,
-  deletePersonalRecord,
-  calculatePersonBalance,
-  addCustomType,
+  usePersonalState, savePerson, addPersonalRecord, updatePersonalRecord,
+  deletePersonalRecord, calculatePersonBalance, addCustomType,
 } from '../lib/personalStore';
-import { formatMoney, localDate } from '../lib/accountsStore';
+import { localDate } from '../lib/accountsStore';
 import { exportMultipleSheets } from '../lib/excelExport';
+import { PersonalKpiCards } from '../components/PersonalKpiCards';
 import { PersonalSummaryTable } from '../components/PersonalSummaryTable';
 import { PersonalTransactionsView } from '../components/PersonalTransactionsView';
 import { PersonalContactForm } from '../components/PersonalContactForm';
 import { DocumentPreviewModal } from '../components/DocumentPreviewModal';
+import { ContactProfileModal } from '../components/ContactProfileModal';
 
 const emptyPersonForm = {
   name: '', phone: '', relation: 'Friend / Family', address: '',
@@ -29,44 +26,27 @@ const PersonalLedgerPage = () => {
   const [selectedPersonId, setSelectedPersonId] = useState('all');
 
   const [previewData, setPreviewData] = useState(null);
+  const [profilePerson, setProfilePerson] = useState(null);
   const [editingPersonId, setEditingPersonId] = useState(null);
   const [personForm, setPersonForm] = useState(emptyPersonForm);
 
   const [editingTxnId, setEditingTxnId] = useState(null);
   const [txnForm, setTxnForm] = useState({
-    personId: '',
-    date: localDate(),
-    dueDate: '',
-    type: 'given',
-    amount: '',
-    method: 'Cash',
-    bankOrWalletDetails: '',
-    note: '',
+    personId: '', date: localDate(), dueDate: '', type: 'given',
+    amount: '', method: 'Cash', bankOrWalletDetails: '', note: '',
   });
 
   const [message, setMessage] = useState('');
   const [isError, setIsError] = useState(false);
 
   const stats = useMemo(() => {
-    let totalReceivable = 0;
-    let totalPayable = 0;
-    let receivableCount = 0;
-    let payableCount = 0;
-    let settledCount = 0;
-
+    let totalReceivable = 0, totalPayable = 0, receivableCount = 0, payableCount = 0, settledCount = 0;
     persons.forEach((p) => {
       const bal = calculatePersonBalance(p, records, customTypes);
-      if (bal > 0) {
-        totalReceivable += bal;
-        receivableCount += 1;
-      } else if (bal < 0) {
-        totalPayable += Math.abs(bal);
-        payableCount += 1;
-      } else {
-        settledCount += 1;
-      }
+      if (bal > 0) { totalReceivable += bal; receivableCount += 1; }
+      else if (bal < 0) { totalPayable += Math.abs(bal); payableCount += 1; }
+      else { settledCount += 1; }
     });
-
     return { totalReceivable, totalPayable, net: totalReceivable - totalPayable, receivableCount, payableCount, settledCount };
   }, [persons, records, customTypes]);
 
@@ -88,23 +68,12 @@ const PersonalLedgerPage = () => {
   const handleEditPerson = (person) => {
     setEditingPersonId(person.id);
     setPersonForm({
-      name: person.name,
-      phone: person.phone || '',
-      relation: person.relation || 'Friend / Family',
-      address: person.address || '',
-      nidNumber: person.nidNumber || '',
-      passportNumber: person.passportNumber || '',
-      documents: person.documents || {},
-      openingType: person.openingType || 'receivable',
-      openingAmount: person.openingAmount || '',
-      note: person.note || '',
+      name: person.name, phone: person.phone || '', relation: person.relation || 'Friend / Family',
+      address: person.address || '', nidNumber: person.nidNumber || '', passportNumber: person.passportNumber || '',
+      documents: person.documents || {}, openingType: person.openingType || 'receivable',
+      openingAmount: person.openingAmount || '', note: person.note || '',
     });
     setActiveTab('persons');
-  };
-
-  const handleCancelEditPerson = () => {
-    setEditingPersonId(null);
-    setPersonForm(emptyPersonForm);
   };
 
   const handleSaveTxn = (e) => {
@@ -129,58 +98,45 @@ const PersonalLedgerPage = () => {
   const handleEditTxn = (record) => {
     setEditingTxnId(record.id);
     setTxnForm({
-      personId: record.personId,
-      date: record.date,
-      dueDate: record.dueDate || '',
-      type: record.type,
-      amount: record.amount,
-      method: record.method || 'Cash',
-      bankOrWalletDetails: record.bankOrWalletDetails || '',
-      note: record.note || '',
+      personId: record.personId, date: record.date, dueDate: record.dueDate || '',
+      type: record.type, amount: record.amount, method: record.method || 'Cash',
+      bankOrWalletDetails: record.bankOrWalletDetails || '', note: record.note || '',
     });
     window.scrollTo({ top: 300, behavior: 'smooth' });
   };
 
   const handleExportExcel = () => {
-    if (!persons.length && !records.length) {
-      alert('No data available to export.');
-      return;
-    }
+    if (!persons.length && !records.length) { alert('No data available to export.'); return; }
     const summaryData = persons.map((p) => {
       const bal = calculatePersonBalance(p, records, customTypes);
       return {
-        'Contact Name': p.name,
-        'Phone': p.phone || 'N/A',
-        'Relationship': p.relation || 'Personal',
-        'Address': p.address || 'N/A',
-        'NID Number': p.nidNumber || 'N/A',
-        'Passport Number': p.passportNumber || 'N/A',
-        'Opening Balance': p.openingAmount || 0,
-        'Net Balance (BDT)': Math.abs(bal),
+        'Contact Name': p.name, 'Phone': p.phone || 'N/A', 'Relationship': p.relation || 'Personal',
+        'Address': p.address || 'N/A', 'NID Number': p.nidNumber || 'N/A', 'Passport Number': p.passportNumber || 'N/A',
+        'Opening Balance': p.openingAmount || 0, 'Net Balance (BDT)': Math.abs(bal),
         'Status': bal > 0 ? 'To Receive (Receivable)' : bal < 0 ? 'To Pay (Payable)' : 'Settled',
       };
     });
-
     const txnsData = records.map((r) => ({
-      'Date': r.date,
-      'Contact Name': r.personName,
-      'Transaction Type': r.type,
-      'Method': r.method,
-      'Amount (BDT)': r.amount,
-      'Promised Return Date': r.dueDate || 'N/A',
-      'Notes': r.note || '',
+      'Date': r.date, 'Contact Name': r.personName, 'Transaction Type': r.type,
+      'Method': r.method, 'Amount (BDT)': r.amount, 'Promised Return Date': r.dueDate || 'N/A', 'Notes': r.note || '',
     }));
-
     exportMultipleSheets({ 'Summary Balances': summaryData, 'Transaction Log': txnsData }, 'Personal_Ledger');
   };
 
   return (
     <div className="mx-auto max-w-6xl p-4 sm:p-6 space-y-6">
       {previewData && (
-        <DocumentPreviewModal
-          doc={previewData.doc}
-          title={previewData.title}
-          onClose={() => setPreviewData(null)}
+        <DocumentPreviewModal doc={previewData.doc} title={previewData.title} onClose={() => setPreviewData(null)} />
+      )}
+      {profilePerson && (
+        <ContactProfileModal
+          person={profilePerson}
+          records={records}
+          customTypes={customTypes}
+          onClose={() => setProfilePerson(null)}
+          onSelectPerson={(id) => { setTxnForm((curr) => ({ ...curr, personId: id })); setActiveTab('transaction'); }}
+          onEditPerson={handleEditPerson}
+          onPreviewDoc={(doc, title) => setPreviewData({ doc, title })}
         />
       )}
 
@@ -203,37 +159,7 @@ const PersonalLedgerPage = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 shadow-sm">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-emerald-800 uppercase tracking-wider">Total Receivable</span>
-            <span className="text-xs font-medium text-emerald-600 bg-emerald-100 px-2 py-0.5 rounded-full">{stats.receivableCount} debtors</span>
-          </div>
-          <p className="text-xl sm:text-2xl font-bold text-emerald-700 mt-1 font-mono">{formatMoney(stats.totalReceivable)}</p>
-          <span className="text-[11px] text-emerald-600 mt-0.5 block">Money to be collected from contacts</span>
-        </div>
-
-        <div className="bg-rose-50 border border-rose-200 rounded-xl p-4 shadow-sm">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-rose-800 uppercase tracking-wider">Total Payable (Debt)</span>
-            <span className="text-xs font-medium text-rose-600 bg-rose-100 px-2 py-0.5 rounded-full">{stats.payableCount} creditors</span>
-          </div>
-          <p className="text-xl sm:text-2xl font-bold text-rose-700 mt-1 font-mono">{formatMoney(stats.totalPayable)}</p>
-          <span className="text-[11px] text-rose-600 mt-0.5 block">Money you borrowed and have to repay</span>
-        </div>
-
-        <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 shadow-sm">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-700 uppercase tracking-wider">Net Personal Balance</span>
-            <span className="text-xs font-medium text-slate-500 bg-slate-200 px-2 py-0.5 rounded-full">{stats.settledCount} settled</span>
-          </div>
-          <p className={`text-xl sm:text-2xl font-bold mt-1 font-mono ${stats.net >= 0 ? 'text-indigo-700' : 'text-amber-700'}`}>
-            {formatMoney(Math.abs(stats.net))}
-            <span className="text-xs font-normal ml-1.5">{stats.net >= 0 ? '(Net Surplus)' : '(Net Deficit)'}</span>
-          </p>
-          <span className="text-[11px] text-slate-500 mt-0.5 block">Overall personal asset vs obligation</span>
-        </div>
-      </div>
+      <PersonalKpiCards stats={stats} />
 
       {message && (
         <div className={`p-3 rounded-lg text-xs sm:text-sm font-medium ${isError ? 'bg-rose-50 text-rose-700 border border-rose-200' : 'bg-emerald-50 text-emerald-700 border border-emerald-200'}`}>
@@ -270,12 +196,10 @@ const PersonalLedgerPage = () => {
             records={records}
             customTypes={customTypes}
             search={search}
-            onSelectPerson={(id) => {
-              setTxnForm((curr) => ({ ...curr, personId: id }));
-              setActiveTab('transaction');
-            }}
+            onSelectPerson={(id) => { setTxnForm((curr) => ({ ...curr, personId: id })); setActiveTab('transaction'); }}
             onEditPerson={handleEditPerson}
             onPreviewDoc={(doc, title) => setPreviewData({ doc, title })}
+            onViewProfile={(p) => setProfilePerson(p)}
           />
         </div>
       )}
@@ -308,7 +232,7 @@ const PersonalLedgerPage = () => {
           setPersonForm={setPersonForm}
           onSavePerson={handleSavePerson}
           editingPersonId={editingPersonId}
-          onCancelEdit={handleCancelEditPerson}
+          onCancelEdit={() => { setEditingPersonId(null); setPersonForm(emptyPersonForm); }}
           onPreviewDoc={(doc, title) => setPreviewData({ doc, title })}
         />
       )}

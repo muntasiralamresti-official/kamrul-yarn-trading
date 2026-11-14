@@ -11,6 +11,7 @@ export const PersonalSummaryTable = ({
   onSelectPerson,
   onEditPerson,
   onPreviewDoc,
+  onViewProfile,
 }) => {
   const [statusFilter, setStatusFilter] = useState('all');
 
@@ -103,17 +104,29 @@ export const PersonalSummaryTable = ({
                           <img
                             src={avatar}
                             alt={p.name}
-                            onClick={() => onPreviewDoc(docs.photo, `${p.name}'s Photo`)}
-                            className="w-9 h-9 rounded-full object-cover border border-slate-200 cursor-pointer shadow-sm hover:ring-2 hover:ring-indigo-400 shrink-0"
-                            title="Click to view full photo"
+                            onClick={() => onViewProfile ? onViewProfile(p) : onPreviewDoc(docs.photo, `${p.name}'s Photo`)}
+                            className="w-9 h-9 rounded-full object-cover border border-slate-200 cursor-pointer shadow-sm hover:ring-2 hover:ring-indigo-500 shrink-0 transition-all hover:scale-105"
+                            title="Click to view contact profile"
                           />
                         ) : (
-                          <div className="w-9 h-9 rounded-full bg-indigo-100 text-indigo-700 font-bold flex items-center justify-center text-sm shrink-0">
+                          <button
+                            type="button"
+                            onClick={() => onViewProfile && onViewProfile(p)}
+                            className="w-9 h-9 rounded-full bg-indigo-100 hover:bg-indigo-200 text-indigo-700 font-bold flex items-center justify-center text-sm shrink-0 transition-colors"
+                            title="Click to view contact profile"
+                          >
                             {p.name.charAt(0).toUpperCase()}
-                          </div>
+                          </button>
                         )}
                         <div className="min-w-0">
-                          <p className="font-semibold text-slate-900 leading-tight">{p.name}</p>
+                          <button
+                            type="button"
+                            onClick={() => onViewProfile && onViewProfile(p)}
+                            className="font-semibold text-slate-900 hover:text-indigo-600 transition-colors text-left group"
+                            title="Click to view customer profile"
+                          >
+                            <span className="group-hover:underline underline-offset-2">{p.name}</span>
+                          </button>
                           <span className="text-[11px] text-slate-500 block">
                             {p.relation || 'Personal'} {p.address ? `· ${p.address}` : ''}
                           </span>
