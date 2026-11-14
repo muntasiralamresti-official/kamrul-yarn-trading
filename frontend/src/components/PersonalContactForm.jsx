@@ -1,5 +1,6 @@
 import React from 'react';
 import { UserPlus, UserCheck, X } from 'lucide-react';
+import { ContactDocumentUploader } from './ContactDocumentUploader';
 
 export const PersonalContactForm = ({
   personForm,
@@ -7,9 +8,10 @@ export const PersonalContactForm = ({
   onSavePerson,
   editingPersonId,
   onCancelEdit,
+  onPreviewDoc,
 }) => {
   return (
-    <form onSubmit={onSavePerson} className="bg-white border border-slate-200 rounded-xl p-5 space-y-4 max-w-2xl shadow-sm">
+    <form onSubmit={onSavePerson} className="bg-white border border-slate-200 rounded-xl p-5 space-y-4 max-w-3xl shadow-sm">
       <div className="flex items-center justify-between border-b border-slate-100 pb-2">
         <h3 className="font-bold text-slate-800 text-sm sm:text-base flex items-center gap-1.5">
           {editingPersonId ? (
@@ -33,32 +35,36 @@ export const PersonalContactForm = ({
         )}
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
         <div>
-          <label className="block text-xs font-medium text-slate-700 mb-1">Contact Name *</label>
+          <label className="block text-xs font-medium text-slate-700 mb-1">
+            Contact Name <span className="text-rose-500">*</span>
+          </label>
           <input
             type="text"
             value={personForm.name}
             onChange={(e) => setPersonForm({ ...personForm, name: e.target.value })}
             placeholder="Full Name"
-            className="w-full rounded border border-slate-300 p-2 text-xs sm:text-sm"
+            className="w-full rounded border border-slate-300 p-2 text-xs sm:text-sm focus:ring-1 focus:ring-indigo-500"
             required
           />
         </div>
+
         <div>
-          <label className="block text-xs font-medium text-slate-700 mb-1">Mobile / Phone Number</label>
+          <label className="block text-xs font-medium text-slate-700 mb-1">Mobile / Phone Number (Optional)</label>
           <input
             type="text"
-            value={personForm.phone}
+            value={personForm.phone || ''}
             onChange={(e) => setPersonForm({ ...personForm, phone: e.target.value })}
             placeholder="017XXXXXXXX"
             className="w-full rounded border border-slate-300 p-2 text-xs sm:text-sm"
           />
         </div>
+
         <div>
           <label className="block text-xs font-medium text-slate-700 mb-1">Relationship</label>
           <select
-            value={personForm.relation}
+            value={personForm.relation || 'Friend'}
             onChange={(e) => setPersonForm({ ...personForm, relation: e.target.value })}
             className="w-full rounded border border-slate-300 p-2 text-xs sm:text-sm bg-white"
           >
@@ -69,20 +75,48 @@ export const PersonalContactForm = ({
             <option value="Other">Other</option>
           </select>
         </div>
-        <div>
-          <label className="block text-xs font-medium text-slate-700 mb-1">Address / Location</label>
+
+        <div className="sm:col-span-2 md:col-span-3">
+          <label className="block text-xs font-medium text-slate-700 mb-1">Address / Location (Optional)</label>
           <input
             type="text"
-            value={personForm.address}
+            value={personForm.address || ''}
             onChange={(e) => setPersonForm({ ...personForm, address: e.target.value })}
-            placeholder="City / Area"
+            placeholder="House / Village, Post, Police Station, District..."
             className="w-full rounded border border-slate-300 p-2 text-xs sm:text-sm"
           />
         </div>
+
+        <div>
+          <label className="block text-xs font-medium text-slate-700 mb-1">
+            NID Number (Optional)
+          </label>
+          <input
+            type="text"
+            value={personForm.nidNumber || ''}
+            onChange={(e) => setPersonForm({ ...personForm, nidNumber: e.target.value })}
+            placeholder="e.g. 1982736192837"
+            className="w-full rounded border border-slate-300 p-2 text-xs sm:text-sm font-mono"
+          />
+        </div>
+
+        <div>
+          <label className="block text-xs font-medium text-slate-700 mb-1">
+            Passport Number (Optional)
+          </label>
+          <input
+            type="text"
+            value={personForm.passportNumber || ''}
+            onChange={(e) => setPersonForm({ ...personForm, passportNumber: e.target.value })}
+            placeholder="e.g. A01234567"
+            className="w-full rounded border border-slate-300 p-2 text-xs sm:text-sm font-mono uppercase"
+          />
+        </div>
+
         <div>
           <label className="block text-xs font-medium text-slate-700 mb-1">Opening Balance Type</label>
           <select
-            value={personForm.openingType}
+            value={personForm.openingType || 'receivable'}
             onChange={(e) => setPersonForm({ ...personForm, openingType: e.target.value })}
             className="w-full rounded border border-slate-300 p-2 text-xs sm:text-sm bg-white"
           >
@@ -90,19 +124,28 @@ export const PersonalContactForm = ({
             <option value="payable">I owe (Payable / My Debt)</option>
           </select>
         </div>
-        <div>
-          <label className="block text-xs font-medium text-slate-700 mb-1">Opening Amount (BDT)</label>
+
+        <div className="sm:col-span-2 md:col-span-3">
+          <label className="block text-xs font-medium text-slate-700 mb-1">Opening Amount (BDT, Optional)</label>
           <input
             type="number"
             min="0"
-            value={personForm.openingAmount}
+            value={personForm.openingAmount || ''}
             onChange={(e) => setPersonForm({ ...personForm, openingAmount: e.target.value })}
             placeholder="0"
             className="w-full rounded border border-slate-300 p-2 text-xs sm:text-sm font-mono"
           />
         </div>
       </div>
-      <div className="flex justify-end gap-2 pt-2">
+
+      {/* Optimized Document & Photo Upload Component */}
+      <ContactDocumentUploader
+        documents={personForm.documents || {}}
+        onChange={(docs) => setPersonForm({ ...personForm, documents: docs })}
+        onPreview={onPreviewDoc}
+      />
+
+      <div className="flex justify-end gap-2 pt-2 border-t border-slate-100">
         {editingPersonId && (
           <button
             type="button"

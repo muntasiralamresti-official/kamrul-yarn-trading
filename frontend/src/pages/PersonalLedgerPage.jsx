@@ -14,6 +14,13 @@ import { exportMultipleSheets } from '../lib/excelExport';
 import { PersonalSummaryTable } from '../components/PersonalSummaryTable';
 import { PersonalTransactionsView } from '../components/PersonalTransactionsView';
 import { PersonalContactForm } from '../components/PersonalContactForm';
+import { DocumentPreviewModal } from '../components/DocumentPreviewModal';
+
+const emptyPersonForm = {
+  name: '', phone: '', relation: 'Friend / Family', address: '',
+  nidNumber: '', passportNumber: '', documents: {},
+  openingType: 'receivable', openingAmount: '', note: '',
+};
 
 const PersonalLedgerPage = () => {
   const { persons, records, customTypes = [] } = usePersonalState();
@@ -21,16 +28,9 @@ const PersonalLedgerPage = () => {
   const [search, setSearch] = useState('');
   const [selectedPersonId, setSelectedPersonId] = useState('all');
 
+  const [previewData, setPreviewData] = useState(null);
   const [editingPersonId, setEditingPersonId] = useState(null);
-  const [personForm, setPersonForm] = useState({
-    name: '',
-    phone: '',
-    relation: 'Friend / Family',
-    address: '',
-    openingType: 'receivable',
-    openingAmount: '',
-    note: '',
-  });
+  const [personForm, setPersonForm] = useState(emptyPersonForm);
 
   const [editingTxnId, setEditingTxnId] = useState(null);
   const [txnForm, setTxnForm] = useState({
@@ -74,7 +74,7 @@ const PersonalLedgerPage = () => {
     e.preventDefault();
     try {
       savePerson({ ...personForm, id: editingPersonId });
-      setPersonForm({ name: '', phone: '', relation: 'Friend / Family', address: '', openingType: 'receivable', openingAmount: '', note: '' });
+      setPersonForm(emptyPersonForm);
       setEditingPersonId(null);
       setMessage(editingPersonId ? 'Contact person updated successfully.' : 'Contact person added successfully.');
       setIsError(false);
@@ -92,6 +92,9 @@ const PersonalLedgerPage = () => {
       phone: person.phone || '',
       relation: person.relation || 'Friend / Family',
       address: person.address || '',
+      nidNumber: person.nidNumber || '',
+      passportNumber: person.passportNumber || '',
+      documents: person.documents || {},
       openingType: person.openingType || 'receivable',
       openingAmount: person.openingAmount || '',
       note: person.note || '',
@@ -101,7 +104,7 @@ const PersonalLedgerPage = () => {
 
   const handleCancelEditPerson = () => {
     setEditingPersonId(null);
-    setPersonForm({ name: '', phone: '', relation: 'Friend / Family', address: '', openingType: 'receivable', openingAmount: '', note: '' });
+    setPersonForm(emptyPersonForm);
   };
 
   const handleSaveTxn = (e) => {
@@ -138,11 +141,6 @@ const PersonalLedgerPage = () => {
     window.scrollTo({ top: 300, behavior: 'smooth' });
   };
 
-  const handleCancelEditTxn = () => {
-    setEditingTxnId(null);
-    setTxnForm({ personId: '', date: localDate(), dueDate: '', type: 'given', amount: '', method: 'Cash', bankOrWalletDetails: '', note: '' });
-  };
-
   const handleExportExcel = () => {
     if (!persons.length && !records.length) {
       alert('No data available to export.');
@@ -155,6 +153,8 @@ const PersonalLedgerPage = () => {
         'Phone': p.phone || 'N/A',
         'Relationship': p.relation || 'Personal',
         'Address': p.address || 'N/A',
+        'NID Number': p.nidNumber || 'N/A',
+        'Passport Number': p.passportNumber || 'N/A',
         'Opening Balance': p.openingAmount || 0,
         'Net Balance (BDT)': Math.abs(bal),
         'Status': bal > 0 ? 'To Receive (Receivable)' : bal < 0 ? 'To Pay (Payable)' : 'Settled',
@@ -176,6 +176,14 @@ const PersonalLedgerPage = () => {
 
   return (
     <div className="mx-auto max-w-6xl p-4 sm:p-6 space-y-6">
+      {previewData && (
+        <DocumentPreviewModal
+          doc={previewData.doc}
+          title={previewData.title}
+          onClose={() => setPreviewData(null)}
+        />
+      )}
+
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
         <div>
           <h1 className="text-xl sm:text-2xl font-bold text-slate-800 flex items-center gap-2">
@@ -253,7 +261,7 @@ const PersonalLedgerPage = () => {
               type="text"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Search contact by name, phone or relation..."
+              placeholder="Search contact by name, phone, NID or passport..."
               className="w-full pl-9 pr-3 py-2 text-xs sm:text-sm rounded-lg border border-slate-300 focus:outline-none focus:ring-1 focus:ring-indigo-500"
             />
           </div>
@@ -267,6 +275,7 @@ const PersonalLedgerPage = () => {
               setActiveTab('transaction');
             }}
             onEditPerson={handleEditPerson}
+            onPreviewDoc={(doc, title) => setPreviewData({ doc, title })}
           />
         </div>
       )}
@@ -284,7 +293,10 @@ const PersonalLedgerPage = () => {
           editingTxnId={editingTxnId}
           onSaveTxn={handleSaveTxn}
           onEditTxn={handleEditTxn}
-          onCancelEdit={handleCancelEditTxn}
+          onCancelEdit={() => {
+            setEditingTxnId(null);
+            setTxnForm({ personId: '', date: localDate(), dueDate: '', type: 'given', amount: '', method: 'Cash', bankOrWalletDetails: '', note: '' });
+          }}
           onDeleteRecord={deletePersonalRecord}
           onAddCustomType={addCustomType}
         />
@@ -297,6 +309,7 @@ const PersonalLedgerPage = () => {
           onSavePerson={handleSavePerson}
           editingPersonId={editingPersonId}
           onCancelEdit={handleCancelEditPerson}
+          onPreviewDoc={(doc, title) => setPreviewData({ doc, title })}
         />
       )}
     </div>
