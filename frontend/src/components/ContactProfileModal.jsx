@@ -1,9 +1,9 @@
 import React from 'react';
 import { formatMoney } from '../lib/accountsStore';
-import { calculatePersonBalance } from '../lib/personalStore';
+import { calculatePersonBalance, togglePersonBalanceType } from '../lib/personalStore';
 import {
   X, Phone, MessageCircle, MapPin, CreditCard,
-  FileText, ArrowRightLeft, Edit, Printer, CheckCircle2, ArrowUpRight, ArrowDownLeft
+  FileText, ArrowRightLeft, Edit, Printer, CheckCircle2, ArrowUpRight, ArrowDownLeft, RefreshCw
 } from 'lucide-react';
 
 export const ContactProfileModal = ({
@@ -104,6 +104,16 @@ export const ContactProfileModal = ({
                 <span className="inline-block mt-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-100 text-slate-600">
                   Settled (Cleared)
                 </span>
+              )}
+              {personRecords.length === 0 && (
+                <button
+                  type="button"
+                  onClick={() => togglePersonBalanceType(person.id)}
+                  className="mt-1.5 text-[11px] text-indigo-600 hover:text-indigo-800 font-medium inline-flex items-center gap-1 hover:underline"
+                  title="Toggle between Receivable and Payable"
+                >
+                  <RefreshCw size={11} /> উল্টান (পাবো ⇄ দেবো)
+                </button>
               )}
             </div>
           </div>

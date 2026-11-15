@@ -114,14 +114,16 @@ export const PersonalContactForm = ({
         </div>
 
         <div>
-          <label className="block text-xs font-medium text-slate-700 mb-1">Opening Balance Type</label>
+          <label className="block text-xs font-semibold text-slate-700 mb-1">
+            হিসাবের ধরন (Opening Type)
+          </label>
           <select
             value={personForm.openingType || 'receivable'}
             onChange={(e) => setPersonForm({ ...personForm, openingType: e.target.value })}
-            className="w-full rounded border border-slate-300 p-2 text-xs sm:text-sm bg-white"
+            className="w-full rounded border border-slate-300 p-2 text-xs sm:text-sm bg-white font-medium"
           >
-            <option value="receivable">I am owed (Receivable / My Due)</option>
-            <option value="payable">I owe (Payable / My Debt)</option>
+            <option value="receivable">🟢 আমি টাকা পাবো (Receivable / Invested / DPS / Loan Given)</option>
+            <option value="payable">🔴 আমার দেনা / ঋণ (Payable / Loan Taken / I Owe)</option>
           </select>
         </div>
 

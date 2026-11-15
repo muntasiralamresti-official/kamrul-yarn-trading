@@ -106,6 +106,15 @@ export const deletePerson = (personId) => {
   persist({ ...state, persons: state.persons.filter((p) => p.id !== personId) });
 };
 
+export const togglePersonBalanceType = (personId) => {
+  const nextPersons = state.persons.map((p) => {
+    if (p.id !== personId) return p;
+    const nextType = p.openingType === 'payable' ? 'receivable' : 'payable';
+    return { ...p, openingType: nextType, updatedAt: new Date().toISOString() };
+  });
+  persist({ ...state, persons: nextPersons });
+};
+
 export const addPersonalRecord = (data) => {
   const amount = Number(data.amount);
   if (!Number.isFinite(amount) || amount <= 0) throw new Error('Please enter a valid amount greater than 0.');
