@@ -11,6 +11,7 @@ const ALLOWED_KEYS = [
   'kamrul-yarn-trading.hr.v1',
   'kamrul-yarn-trading.admin.v1',
   'kamrul-yarn-trading.personal.v1',
+  'kamrul-yarn-trading.visa.v1',
 ];
 
 const isValidKey = (key) => ALLOWED_KEYS.includes(key);

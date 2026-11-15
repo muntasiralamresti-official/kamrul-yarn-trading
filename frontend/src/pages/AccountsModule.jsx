@@ -1,10 +1,11 @@
 import React from 'react';
 import ModuleLayout from '../components/ModuleLayout';
-import { Briefcase, Building, DollarSign, List, PlusSquare, FileText, CreditCard, UserCheck, Receipt } from 'lucide-react';
+import { Briefcase, Building, DollarSign, List, PlusSquare, FileText, CreditCard, UserCheck, Receipt, Plane } from 'lucide-react';
 
 const AccountsModule = () => {
   const items = [
     { name: 'Personal Ledger (Dues & Loans)', path: '/accounts/personal-ledger', icon: <UserCheck size={40} strokeWidth={2.5} /> },
+    { name: 'Visa & Passport Processing', path: '/visa-passports', icon: <Plane size={40} strokeWidth={2.5} /> },
     { name: 'Expense & Inc Entry', path: '/accounts/expense-entry', icon: <Briefcase size={40} strokeWidth={2.5} /> },
     { name: 'Bank Transactions', path: '/accounts/bank-transactions', icon: <Building size={40} strokeWidth={2.5} /> },
     { name: 'Customer Payment', path: '/accounts/customer-payment', icon: <DollarSign size={40} strokeWidth={2.5} /> },

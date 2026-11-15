@@ -47,6 +47,7 @@ import CashStatement from './pages/CashStatement';
 import BalanceSheet from './pages/BalanceSheet';
 import MoneyReceiptPrint from './pages/MoneyReceiptPrint';
 import PersonalLedgerPage from './pages/PersonalLedgerPage';
+import VisaPassportPage from './pages/VisaPassportPage';
 import {
   CustomerPaymentReport,
   EmployeeListReport,
@@ -126,6 +127,8 @@ const App = () => {
           <Route path="accounts/balance-sheet" element={<BalanceSheet />} />
           <Route path="accounts/money-receipt" element={<MoneyReceiptPrint />} />
           <Route path="accounts/personal-ledger" element={<PersonalLedgerPage />} />
+          <Route path="visa-passports" element={<VisaPassportPage />} />
+          <Route path="accounts/visa-passports" element={<VisaPassportPage />} />
           <Route path="reports/money-receipt" element={<MoneyReceiptPrint />} />
 
           <Route path="reports" element={<ReportsModule />} />

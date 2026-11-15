@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, DollarSign, ShoppingCart, BookOpen, Users, FileText, Settings, BarChart2, UserCheck, X } from 'lucide-react';
+import { LayoutDashboard, DollarSign, ShoppingCart, BookOpen, Users, FileText, Settings, BarChart2, UserCheck, Plane, X } from 'lucide-react';
 
 const navItems = [
   { name: 'Dashboard', path: '/', icon: LayoutDashboard },
@@ -8,6 +8,7 @@ const navItems = [
   { name: 'Purchase', path: '/purchase', icon: ShoppingCart },
   { name: 'Accounts', path: '/accounts', icon: BookOpen },
   { name: 'Personal Ledger', path: '/accounts/personal-ledger', icon: UserCheck },
+  { name: 'Visa & Passports', path: '/visa-passports', icon: Plane },
   { name: 'HR & Payroll', path: '/hr', icon: Users },
   { name: 'Reports', path: '/reports', icon: FileText },
   { name: 'Administration', path: '/admin', icon: Settings },
